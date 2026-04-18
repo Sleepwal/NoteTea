@@ -3,6 +3,7 @@ package model
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/user/agenttea/internal/api"
+	"github.com/user/agenttea/internal/store"
 )
 
 func (m AppModel) handleKeyMsg(message tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -47,6 +48,7 @@ func (m AppModel) handleKeyMsg(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.inputHistory = nil
 			m.historyIndex = -1
 			m.currentInput = ""
+			m.conversation = store.NewConversation(m.client.Model)
 			m.viewport.SetContent(m.renderMessages())
 			m.viewport.GotoBottom()
 			return m, nil

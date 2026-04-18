@@ -9,7 +9,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/user/agenttea/internal/api"
+	"github.com/user/agenttea/internal/logger"
 	"github.com/user/agenttea/internal/msg"
+	"github.com/user/agenttea/internal/store"
 	"github.com/user/agenttea/internal/ui"
 )
 
@@ -18,6 +20,8 @@ func (m AppModel) handleSend() (tea.Model, tea.Cmd) {
 	if input == "" {
 		return m, nil
 	}
+
+	logger.Info("发送消息, 长度: %d, 模型: %s", len(input), m.client.Model)
 
 	m.inputHistory = append(m.inputHistory, input)
 	m.historyIndex = -1
@@ -42,10 +46,52 @@ func (m AppModel) handleSend() (tea.Model, tea.Cmd) {
 
 	m.textarea.Reset()
 	m.loading = true
+	m.saveConversation()
 	m.viewport.SetContent(m.renderMessages())
 	m.viewport.GotoBottom()
 
 	return m, m.startChatRequest()
+}
+
+func (m *AppModel) saveConversation() {
+	if m.conversation == nil {
+		m.conversation = store.NewConversation(m.client.Model)
+	}
+
+	storeMsgs := make([]store.StoreMessage, 0, len(m.messages))
+	for _, msg := range m.messages {
+		if !msg.Streaming {
+			storeMsgs = append(storeMsgs, store.StoreMessage{
+				Role:      msg.Role,
+				Content:   msg.Content,
+				Timestamp: msg.Timestamp,
+			})
+		}
+	}
+
+	m.conversation.Messages = storeMsgs
+	m.conversation.Model = m.client.Model
+
+	if len(m.messages) > 0 {
+		firstUserMsg := ""
+		for _, msg := range m.messages {
+			if msg.Role == "user" {
+				firstUserMsg = msg.Content
+				break
+			}
+		}
+		if firstUserMsg != "" {
+			title := firstUserMsg
+			if len(title) > 30 {
+				title = title[:30] + "..."
+			}
+			m.conversation.Title = title
+		}
+	}
+
+	if err := store.SaveConversation(m.conversation); err != nil {
+		logger.Error("保存对话失败: %v", err)
+	}
 }
 
 func (m AppModel) buildAPIMessages() []api.Message {
@@ -71,8 +117,11 @@ func (m AppModel) startChatRequest() tea.Cmd {
 		reader, err := client.SendChat(ctx, apiMsgs)
 		if err != nil {
 			cancel()
+			logger.Error("API 请求失败: %v", err)
 			return msg.ApiErrorMsg{Err: err}
 		}
+
+		logger.Info("API 连接成功, 开始流式读取")
 
 		return msg.StreamStartMsg{
 			Reader:    reader,
@@ -152,6 +201,9 @@ func (m *AppModel) handleStreamDone(message msg.StreamDoneMsg) {
 	m.hasError = false
 	m.cancelFunc = nil
 	m.cleanupStream()
+	m.saveConversation()
+	logger.Info("流式响应完成, prompt: %d tokens, completion: %d tokens, 耗时: %s",
+		message.PromptEvalCount, message.EvalCount, time.Duration(message.TotalDuration).Round(time.Millisecond))
 	m.viewport.SetContent(m.renderMessages())
 	m.viewport.GotoBottom()
 }
@@ -161,6 +213,7 @@ func (m *AppModel) handleApiError(message msg.ApiErrorMsg) {
 	m.hasError = true
 	m.cancelFunc = nil
 	m.cleanupStream()
+	logger.Error("API 错误: %v", message.Err)
 	if len(m.messages) > 0 {
 		last := &m.messages[len(m.messages)-1]
 		if last.Streaming {
@@ -176,6 +229,8 @@ func (m AppModel) handleRetry() (tea.Model, tea.Cmd) {
 	if len(m.messages) == 0 {
 		return m, nil
 	}
+
+	logger.Info("用户请求重试")
 
 	last := &m.messages[len(m.messages)-1]
 	if last.Role == "assistant" {

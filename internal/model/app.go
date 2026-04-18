@@ -13,7 +13,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/user/agenttea/internal/api"
+	"github.com/user/agenttea/internal/logger"
 	"github.com/user/agenttea/internal/msg"
+	"github.com/user/agenttea/internal/store"
 	"github.com/user/agenttea/internal/ui"
 )
 
@@ -57,6 +59,8 @@ type AppModel struct {
 	cancelFunc   context.CancelFunc
 
 	apiMessages []api.Message
+
+	conversation *store.Conversation
 }
 
 func NewAppModel(client *api.Client) AppModel {
@@ -74,17 +78,33 @@ func NewAppModel(client *api.Client) AppModel {
 
 	vp := viewport.New(80, 20)
 
+	conv := store.NewConversation(client.Model)
+	if lastConv, err := store.LoadLastConversation(); err == nil && lastConv != nil {
+		conv = lastConv
+		logger.Info("恢复上次对话: %s", conv.ID)
+	}
+
+	restoreMsgs := make([]ChatMessage, 0, len(conv.Messages))
+	for _, sm := range conv.Messages {
+		restoreMsgs = append(restoreMsgs, ChatMessage{
+			Role:      sm.Role,
+			Content:   sm.Content,
+			Timestamp: sm.Timestamp,
+		})
+	}
+
 	return AppModel{
 		focused:      FocusInput,
 		loading:      false,
 		showHelp:     false,
-		messages:     []ChatMessage{},
+		messages:     restoreMsgs,
 		inputHistory: []string{},
 		historyIndex: -1,
 		textarea:     ta,
 		viewport:     vp,
 		spinner:      sp,
 		client:       client,
+		conversation: conv,
 	}
 }
 
