@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	APIKey      string  `json:"api_key"`
+	APIKey      string  `json:"api_key,omitempty"`
 	BaseURL     string  `json:"base_url"`
 	Model       string  `json:"model"`
 	Temperature float64 `json:"temperature"`
@@ -92,17 +92,20 @@ func Save(cfg *Config) error {
 		return err
 	}
 
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("创建配置目录失败: %w", err)
 	}
 
+	saveCfg := *cfg
+	saveCfg.APIKey = ""
+
 	path := filepath.Join(dir, "config.json")
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	data, err := json.MarshalIndent(saveCfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("序列化配置失败: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("写入配置文件失败: %w", err)
 	}
 

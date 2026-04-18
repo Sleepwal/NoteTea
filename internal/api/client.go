@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -98,6 +99,10 @@ func NewClientWithConfig(baseURL, apiKey, model string) *Client {
 }
 
 func (c *Client) SendChat(ctx context.Context, messages []Message) (io.ReadCloser, error) {
+	if !strings.HasPrefix(c.BaseURL, "https://") {
+		fmt.Fprintf(os.Stderr, "警告: BaseURL (%s) 未使用 HTTPS，API 密钥将以明文传输\n", c.BaseURL)
+	}
+
 	reqBody := ChatRequest{
 		Model:    c.Model,
 		Messages: messages,
