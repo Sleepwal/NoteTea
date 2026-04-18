@@ -30,6 +30,10 @@ var (
 	StatusBarStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#888888"))
 
+	ModelInfoStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#7D56F4")).
+			Bold(true)
+
 	HelpStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#626262"))
 
@@ -48,4 +52,17 @@ var (
 
 	SystemMsgStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FBBF24")).Italic(true)
+
+	StatsStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#888888")).
+			Italic(true)
+
+	ModelPickerActiveStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#7D56F4")).
+				Bold(true)
+
+	ModelPickerBorderStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("#7D56F4")).
+				Padding(1, 2)
 )
