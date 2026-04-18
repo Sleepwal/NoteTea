@@ -18,6 +18,13 @@ const (
 	ChatEndpoint   = "/api/chat"
 )
 
+var AvailableModels = []string{
+	"qwen3.5:cloud",
+	"gpt-oss:120b",
+	"gpt-oss:20b",
+	"deepseek:v3.1:571b",
+}
+
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
