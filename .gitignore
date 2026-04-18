@@ -1,0 +1,46 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+agenttea
+agenttea.exe
+
+# Build output
+/bin/
+/dist/
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+*.prof
+
+# Dependency directories
+/vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Trae
+.trae/
