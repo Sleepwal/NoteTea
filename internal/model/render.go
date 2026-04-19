@@ -221,30 +221,51 @@ func (m AppModel) renderConvPicker() string {
 
 func (m AppModel) renderNotePicker() string {
 	var sb strings.Builder
-	sb.WriteString("笔记列表:\n\n")
+	sb.WriteString(fmt.Sprintf("📝 笔记列表 (%d)\n\n", len(m.noteList)))
 
 	if len(m.noteList) == 0 {
-		sb.WriteString(ui.HelpStyle.Render("暂无笔记，按 n 创建新笔记"))
+		sb.WriteString(ui.HelpStyle.Render("  暂无笔记"))
+		sb.WriteString("\n")
+		sb.WriteString(ui.HelpStyle.Render("  按 n 创建第一篇笔记"))
 	} else {
 		for i, note := range m.noteList {
 			cursor := "  "
-			style := ui.HelpStyle
 			if i == m.noteCursor {
 				cursor = "> "
-				style = ui.ModelPickerActiveStyle
 			}
 
-			tagsStr := ""
-			if len(note.Tags) > 0 {
-				tagsStr = fmt.Sprintf(" [%s]", strings.Join(note.Tags, ", "))
+			titleLine := ui.NoteTitleStyle.Render(note.Title)
+
+			var tagParts []string
+			for _, t := range note.Tags {
+				tagParts = append(tagParts, "#"+t)
 			}
-			label := fmt.Sprintf("%s%s  (%s)", note.Title, tagsStr, note.UpdatedAt.Format("01-02 15:04"))
-			sb.WriteString(fmt.Sprintf("%s%s\n", cursor, style.Render(label)))
+			tagsStr := ""
+			if len(tagParts) > 0 {
+				tagsStr = " " + ui.NoteTagStyle.Render(strings.Join(tagParts, " "))
+			}
+
+			preview := strings.ReplaceAll(note.Content, "\n", " ")
+			preview = strings.TrimSpace(preview)
+			if len(preview) > 40 {
+				preview = preview[:40] + "…"
+			}
+			previewStr := ""
+			if preview != "" {
+				previewStr = "\n   " + ui.NotePreviewStyle.Render(preview)
+			}
+
+			timeStr := ui.StatsStyle.Render(note.UpdatedAt.Format("01-02 15:04"))
+			sb.WriteString(fmt.Sprintf("%s%s%s  %s%s\n", cursor, titleLine, tagsStr, timeStr, previewStr))
 		}
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(ui.HelpStyle.Render("↑/k ↓/j 导航 | Enter 查看 | n 新建 | e 编辑 | d 删除 | q 知识巩固 | Esc 取消"))
+	if m.noteDeleteConfirm {
+		sb.WriteString(ui.ErrorStyle.Render("  确认删除？再按 d 确认，其他键取消"))
+	} else {
+		sb.WriteString(ui.HelpStyle.Render("↑/k ↓/j 导航 | Enter 查看 | n 新建 | e 编辑 | d 删除 | q 知识巩固 | Esc 取消"))
+	}
 
 	content := sb.String()
 	dialog := ui.ModelPickerBorderStyle.Render(content)
@@ -260,57 +281,58 @@ func (m AppModel) renderNoteEditor() string {
 	var sb strings.Builder
 
 	if m.noteEditorMode == "create" {
-		sb.WriteString("新建笔记\n\n")
+		sb.WriteString(ui.NoteTitleStyle.Render("📝 新建笔记"))
 	} else if m.noteEditorMode == "edit" {
-		sb.WriteString("编辑笔记\n\n")
+		sb.WriteString(ui.NoteTitleStyle.Render("✏️ 编辑笔记"))
 	}
+	sb.WriteString("\n")
 
-	sb.WriteString("标题:\n")
-	titleView := m.noteTitleInput.View()
-	sb.WriteString(titleView)
-	sb.WriteString("\n\n")
+	titleLabel := "标题:"
+	if m.noteTitleInput.Focused() {
+		titleLabel = ui.ModelInfoStyle.Render("标题:")
+	}
+	sb.WriteString(titleLabel + "\n")
+	sb.WriteString(m.noteTitleInput.View())
+	sb.WriteString("\n")
 
-	sb.WriteString("内容 (Markdown):\n")
-	contentView := m.noteContentInput.View()
-	sb.WriteString(contentView)
-	sb.WriteString("\n\n")
+	contentLabel := "内容 (Markdown):"
+	if m.noteContentInput.Focused() {
+		contentLabel = ui.ModelInfoStyle.Render("内容 (Markdown):")
+	}
+	sb.WriteString(contentLabel + "\n")
+	sb.WriteString(m.noteContentInput.View())
+	sb.WriteString("\n")
 
-	sb.WriteString(ui.HelpStyle.Render("Tab 切换标题/内容 | Ctrl+S 保存 | Esc 取消"))
+	tagsLabel := "标签 (逗号分隔):"
+	if m.noteTagsInput.Focused() {
+		tagsLabel = ui.ModelInfoStyle.Render("标签 (逗号分隔):")
+	}
+	sb.WriteString(tagsLabel + "\n")
+	sb.WriteString(m.noteTagsInput.View())
+	sb.WriteString("\n")
+
+	sb.WriteString(ui.HelpStyle.Render("Tab 切换焦点 | Ctrl+S 保存 | Esc 取消"))
 
 	content := sb.String()
-	dialog := ui.ModelPickerBorderStyle.Render(content)
 
 	return lipgloss.NewStyle().
 		Width(m.width).
 		Height(m.height).
-		Align(lipgloss.Center, lipgloss.Center).
-		Render(dialog)
+		Padding(1, 2).
+		Render(content)
 }
 
 func (m AppModel) renderNoteViewer() string {
 	var sb strings.Builder
 
 	if m.currentNote != nil {
-		sb.WriteString(fmt.Sprintf("查看笔记: %s\n\n", m.currentNote.Title))
-
-		rendered := ui.RenderMarkdown(m.currentNote.Content)
-		sb.WriteString(rendered)
-
-		tagsStr := ""
-		if len(m.currentNote.Tags) > 0 {
-			tagsStr = fmt.Sprintf(" [%s]", strings.Join(m.currentNote.Tags, ", "))
-		}
-		sb.WriteString(fmt.Sprintf("\n%s", ui.StatsStyle.Render(
-			fmt.Sprintf("创建: %s | 更新: %s%s",
-				m.currentNote.CreatedAt.Format("2006-01-02 15:04"),
-				m.currentNote.UpdatedAt.Format("2006-01-02 15:04"),
-				tagsStr,
-			),
-		)))
+		sb.WriteString(ui.NoteTitleStyle.Render(fmt.Sprintf("📖 %s", m.currentNote.Title)) + "\n\n")
 	}
 
+	sb.WriteString(m.noteViewer.View())
+
 	sb.WriteString("\n\n")
-	sb.WriteString(ui.HelpStyle.Render("e 编辑 | q 知识巩固 | Esc 返回"))
+	sb.WriteString(ui.HelpStyle.Render("↑/k ↓/j 滚动 | e 编辑 | q 知识巩固 | Esc 返回"))
 
 	content := sb.String()
 	dialog := ui.ModelPickerBorderStyle.Render(content)

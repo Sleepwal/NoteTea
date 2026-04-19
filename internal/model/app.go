@@ -54,14 +54,17 @@ type AppModel struct {
 	promptCursor     int
 	promptPresets    []config.SystemPromptPreset
 
-	showNotePicker   bool
-	noteCursor       int
-	noteList         []store.Note
-	showNoteEditor   bool
-	noteEditorMode   string
-	currentNote      *store.Note
-	noteTitleInput   textarea.Model
-	noteContentInput textarea.Model
+	showNotePicker    bool
+	noteCursor        int
+	noteList          []store.Note
+	showNoteEditor    bool
+	noteEditorMode    string
+	currentNote       *store.Note
+	noteTitleInput    textarea.Model
+	noteContentInput  textarea.Model
+	noteTagsInput     textarea.Model
+	noteDeleteConfirm bool
+	noteViewer        viewport.Model
 
 	messages     []ChatMessage
 	inputHistory []string
@@ -114,6 +117,15 @@ func NewAppModel(client *api.Client) AppModel {
 	noteContentTa.SetHeight(8)
 	noteContentTa.ShowLineNumbers = false
 
+	noteTagsTa := textarea.New()
+	noteTagsTa.Placeholder = "标签（逗号分隔，如: go, 并发, 笔记）"
+	noteTagsTa.Prompt = "┃ "
+	noteTagsTa.CharLimit = 0
+	noteTagsTa.SetHeight(1)
+	noteTagsTa.ShowLineNumbers = false
+
+	noteVp := viewport.New(80, 15)
+
 	conv := store.NewConversation(client.Model)
 	if lastConv, err := store.LoadLastConversation(); err == nil && lastConv != nil {
 		conv = lastConv
@@ -161,6 +173,8 @@ func NewAppModel(client *api.Client) AppModel {
 		hookManager:      initHookManager(cfg),
 		noteTitleInput:   noteTitleTa,
 		noteContentInput: noteContentTa,
+		noteTagsInput:    noteTagsTa,
+		noteViewer:       noteVp,
 	}
 }
 
@@ -193,6 +207,14 @@ func (m AppModel) Update(teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		return m.handleKeyMsg(message)
+
+	case tea.MouseMsg:
+		if m.showNoteEditor && m.noteEditorMode != "view" {
+			return m.handleNoteEditorMouse(message)
+		}
+		if m.showNoteEditor && m.noteEditorMode == "view" {
+			return m.handleNoteViewerMouse(message)
+		}
 
 	case msg.StreamStartMsg:
 		m.streamReader = message.Reader

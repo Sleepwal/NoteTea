@@ -187,11 +187,10 @@ func (m AppModel) handleKeyMsg(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.noteEditorMode = ""
 			m.noteTitleInput.Blur()
 			m.noteContentInput.Blur()
+			m.noteTagsInput.Blur()
 			notes, _ := store.ListNotes()
 			m.noteList = notes
-			if len(notes) > 0 {
-				m.showNotePicker = true
-			}
+			m.showNotePicker = true
 			return m, nil
 		}
 		if m.showNotePicker {
