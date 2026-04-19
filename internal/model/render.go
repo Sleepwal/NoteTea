@@ -107,7 +107,7 @@ func (m AppModel) renderHelp() string {
   Ctrl+P        打开对话列表
   Ctrl+E        导出当前对话
   Ctrl+S        切换 System Prompt 预设
-  Ctrl+J        打开笔记列表
+  Ctrl+B        打开笔记列表
   Ctrl+Y        复制最后一个代码块到剪贴板
   Ctrl+T        切换主题 (dark/light/catppuccin)
   Ctrl+M        切换模型

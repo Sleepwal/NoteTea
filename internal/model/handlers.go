@@ -129,7 +129,7 @@ func (m AppModel) handleKeyMsg(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-	case "ctrl+j":
+	case "ctrl+b":
 		return m.openNotePicker()
 
 	case "ctrl+y":
