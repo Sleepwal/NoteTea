@@ -282,16 +282,16 @@ func (m AppModel) handleNoteViewerKey(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.startQuizFromNote(m.currentNote)
 		}
 	case "up", "k":
-		m.noteViewer.LineUp(1)
+		m.noteViewer.ScrollUp(1)
 		return m, nil
 	case "down", "j":
-		m.noteViewer.LineDown(1)
+		m.noteViewer.ScrollDown(1)
 		return m, nil
 	case "pgup":
-		m.noteViewer.HalfViewUp()
+		m.noteViewer.HalfPageUp()
 		return m, nil
 	case "pgdown":
-		m.noteViewer.HalfViewDown()
+		m.noteViewer.HalfPageDown()
 		return m, nil
 	}
 	return m, nil
