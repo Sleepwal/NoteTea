@@ -33,6 +33,7 @@ type ChatMessage struct {
 	Content   string
 	Timestamp time.Time
 	Streaming bool
+	Stats     string
 }
 
 type AppModel struct {
@@ -102,6 +103,7 @@ func NewAppModel(client *api.Client) AppModel {
 			Role:      sm.Role,
 			Content:   sm.Content,
 			Timestamp: sm.Timestamp,
+			Stats:     sm.Stats,
 		})
 	}
 
@@ -159,6 +161,8 @@ func (m AppModel) Update(teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = message.Width
 		m.height = message.Height
 		m.recalcLayout()
+		m.viewport.SetContent(m.renderMessages())
+		m.viewport.GotoBottom()
 		return m, nil
 
 	case tea.KeyMsg:

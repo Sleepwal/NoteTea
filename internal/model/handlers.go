@@ -297,6 +297,7 @@ func (m AppModel) handleConvPickerKey(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 				Role:      sm.Role,
 				Content:   sm.Content,
 				Timestamp: sm.Timestamp,
+				Stats:     sm.Stats,
 			})
 		}
 		m.messages = restoreMsgs

@@ -38,6 +38,9 @@ func (m AppModel) renderMessages() string {
 				sb.WriteString(fmt.Sprintf("%s %s\n", prefix, content))
 			} else {
 				content := ui.RenderMarkdown(chatMsg.Content)
+				if chatMsg.Stats != "" {
+					content += "\n" + ui.StatsStyle.Render(chatMsg.Stats)
+				}
 				sb.WriteString(fmt.Sprintf("%s %s\n", prefix, content))
 			}
 		case "system":
@@ -77,6 +80,9 @@ func (m AppModel) renderMessagesExceptLast() string {
 				sb.WriteString(fmt.Sprintf("%s %s\n", prefix, content))
 			} else {
 				content := ui.RenderMarkdown(chatMsg.Content)
+				if chatMsg.Stats != "" {
+					content += "\n" + ui.StatsStyle.Render(chatMsg.Stats)
+				}
 				sb.WriteString(fmt.Sprintf("%s %s\n", prefix, content))
 			}
 		case "system":

@@ -15,7 +15,6 @@ import (
 	"github.com/user/agenttea/internal/msg"
 	"github.com/user/agenttea/internal/plugin"
 	"github.com/user/agenttea/internal/store"
-	"github.com/user/agenttea/internal/ui"
 )
 
 func (m AppModel) handleSend() (tea.Model, tea.Cmd) {
@@ -126,6 +125,7 @@ func (m *AppModel) saveConversation() {
 				Role:      msg.Role,
 				Content:   msg.Content,
 				Timestamp: msg.Timestamp,
+				Stats:     msg.Stats,
 			})
 		}
 	}
@@ -292,7 +292,7 @@ func (m *AppModel) handleStreamDone(message msg.StreamDoneMsg) {
 			stats = append(stats, fmt.Sprintf("耗时: %s", duration.Round(time.Millisecond)))
 		}
 		if len(stats) > 0 {
-			last.Content += "\n\n" + ui.StatsStyle.Render(fmt.Sprintf("📊 %s", strings.Join(stats, " | ")))
+			last.Stats = fmt.Sprintf("📊 %s", strings.Join(stats, " | "))
 		}
 	}
 	m.loading = false

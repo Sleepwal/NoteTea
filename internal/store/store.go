@@ -12,6 +12,7 @@ type StoreMessage struct {
 	Role      string    `json:"role"`
 	Content   string    `json:"content"`
 	Timestamp time.Time `json:"timestamp"`
+	Stats     string    `json:"stats,omitempty"`
 }
 
 type Conversation struct {
