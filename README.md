@@ -340,4 +340,4 @@ go build -o agenttea .
 
 ## 许可证
 
-MIT License
+[GNU General Public License v3.0](LICENSE)
