@@ -206,14 +206,23 @@ func (m AppModel) Update(teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		return m.handleKeyMsg(message)
+		model, cmd := m.handleKeyMsg(message)
+		result := model.(AppModel)
+		result.syncNoteEditorHeight()
+		return result, cmd
 
 	case tea.MouseMsg:
 		if m.showNoteEditor && m.noteEditorMode != "view" {
-			return m.handleNoteEditorMouse(message)
+			model, cmd := m.handleNoteEditorMouse(message)
+			result := model.(AppModel)
+			result.syncNoteEditorHeight()
+			return result, cmd
 		}
 		if m.showNoteEditor && m.noteEditorMode == "view" {
-			return m.handleNoteViewerMouse(message)
+			model, cmd := m.handleNoteViewerMouse(message)
+			result := model.(AppModel)
+			result.syncNoteEditorHeight()
+			return result, cmd
 		}
 
 	case msg.StreamStartMsg:
@@ -249,7 +258,23 @@ func (m AppModel) Update(teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	return m.delegateToComponents(teaMsg)
+	model, cmd := m.delegateToComponents(teaMsg)
+	result := model.(AppModel)
+	result.syncNoteEditorHeight()
+	return result, cmd
+}
+
+func (m *AppModel) syncNoteEditorHeight() {
+	if !m.showNoteEditor || m.noteEditorMode == "view" || m.height == 0 {
+		return
+	}
+	titleH := lipgloss.Height(m.noteTitleInput.View())
+	tagsH := lipgloss.Height(m.noteTagsInput.View())
+	contentH := m.height - 9 - titleH - tagsH
+	if contentH < 5 {
+		contentH = 5
+	}
+	m.noteContentInput.SetHeight(contentH)
 }
 
 func (m AppModel) View() string {

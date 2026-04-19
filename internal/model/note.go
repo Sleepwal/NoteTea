@@ -62,6 +62,7 @@ func (m AppModel) handleNotePickerKey(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.noteTitleInput.Focus()
 		m.noteContentInput.SetValue("")
 		m.noteTagsInput.SetValue("")
+		m.recalcNoteEditorLayout()
 		return m, textarea.Blink
 	case "e":
 		m.noteDeleteConfirm = false
@@ -79,6 +80,7 @@ func (m AppModel) handleNotePickerKey(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.noteTitleInput.Focus()
 			m.noteContentInput.SetValue(note.Content)
 			m.noteTagsInput.SetValue(strings.Join(note.Tags, ", "))
+			m.recalcNoteEditorLayout()
 			return m, textarea.Blink
 		}
 	case "d":
@@ -226,6 +228,7 @@ func (m AppModel) handleNoteViewerKey(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.noteTitleInput.Focus()
 			m.noteContentInput.SetValue(m.currentNote.Content)
 			m.noteTagsInput.SetValue(strings.Join(m.currentNote.Tags, ", "))
+			m.recalcNoteEditorLayout()
 			return m, textarea.Blink
 		}
 		return m, nil
