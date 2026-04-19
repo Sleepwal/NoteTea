@@ -49,6 +49,46 @@ func (m AppModel) renderMessages() string {
 	return sb.String()
 }
 
+func (m AppModel) renderMessagesExceptLast() string {
+	if len(m.messages) <= 1 {
+		return ""
+	}
+
+	var sb strings.Builder
+
+	if len(m.messages) == 0 {
+		return ""
+	}
+
+	for i, chatMsg := range m.messages[:len(m.messages)-1] {
+		if i > 0 {
+			sb.WriteString("\n")
+		}
+
+		switch chatMsg.Role {
+		case "user":
+			prefix := ui.UserPrefixStyle.Render("[You]")
+			content := ui.UserMsgStyle.Render(chatMsg.Content)
+			sb.WriteString(fmt.Sprintf("%s %s\n", prefix, content))
+		case "assistant":
+			prefix := ui.AssistantPrefixStyle.Render("[Assistant]")
+			if chatMsg.Streaming {
+				content := ui.AssistantMsgStyle.Render(chatMsg.Content)
+				sb.WriteString(fmt.Sprintf("%s %s\n", prefix, content))
+			} else {
+				content := ui.RenderMarkdown(chatMsg.Content)
+				sb.WriteString(fmt.Sprintf("%s %s\n", prefix, content))
+			}
+		case "system":
+			content := ui.SystemMsgStyle.Render(chatMsg.Content)
+			sb.WriteString(content + "\n")
+		}
+	}
+
+	sb.WriteString("\n")
+	return sb.String()
+}
+
 func (m AppModel) renderHelp() string {
 	helpText := `
 快捷键说明:
@@ -61,6 +101,8 @@ func (m AppModel) renderHelp() string {
   Ctrl+P        打开对话列表
   Ctrl+E        导出当前对话
   Ctrl+S        切换 System Prompt 预设
+  Ctrl+Y        复制最后一个代码块到剪贴板
+  Ctrl+T        切换主题 (dark/light/catppuccin)
   Ctrl+M        切换模型
   Esc           取消当前请求 / 关闭帮助
   ?             显示/隐藏帮助（对话区焦点时）

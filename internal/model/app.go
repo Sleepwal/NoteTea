@@ -16,6 +16,7 @@ import (
 	"github.com/user/agenttea/internal/config"
 	"github.com/user/agenttea/internal/logger"
 	"github.com/user/agenttea/internal/msg"
+	"github.com/user/agenttea/internal/plugin"
 	"github.com/user/agenttea/internal/store"
 	"github.com/user/agenttea/internal/ui"
 )
@@ -69,6 +70,9 @@ type AppModel struct {
 	apiMessages []api.Message
 
 	conversation *store.Conversation
+
+	renderedPrefix string
+	hookManager    *plugin.Manager
 }
 
 func NewAppModel(client *api.Client) AppModel {
@@ -107,6 +111,9 @@ func NewAppModel(client *api.Client) AppModel {
 	if cfg != nil {
 		sysPrompt = cfg.SystemPrompt
 		presets = cfg.PromptPresets
+		if cfg.Theme != "" {
+			ui.SetThemeByName(cfg.Theme)
+		}
 	}
 	if len(presets) == 0 {
 		presets = config.DefaultConfig.PromptPresets
@@ -126,11 +133,24 @@ func NewAppModel(client *api.Client) AppModel {
 		conversation:  conv,
 		systemPrompt:  sysPrompt,
 		promptPresets: presets,
+		hookManager:   initHookManager(cfg),
 	}
 }
 
 func (m AppModel) Init() tea.Cmd {
 	return tea.Batch(textarea.Blink, m.spinner.Tick)
+}
+
+func initHookManager(cfg *config.Config) *plugin.Manager {
+	mgr := plugin.NewManager()
+	if cfg != nil {
+		for _, hc := range cfg.Hooks {
+			if hc.Enabled {
+				mgr.AddHook(plugin.HookType(hc.Type), hc.Command)
+			}
+		}
+	}
+	return mgr
 }
 
 func (m AppModel) Update(teaMsg tea.Msg) (tea.Model, tea.Cmd) {
@@ -149,6 +169,7 @@ func (m AppModel) Update(teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cancelFunc = message.CancelCtx
 		m.streamScan = bufio.NewScanner(m.streamReader)
 		m.streamScan.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		m.renderedPrefix = ""
 		return m, m.readNextStreamToken()
 
 	case msg.StreamTokenMsg:
@@ -156,7 +177,12 @@ func (m AppModel) Update(teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 			last := &m.messages[len(m.messages)-1]
 			if last.Streaming {
 				last.Content += message.Content
-				m.viewport.SetContent(m.renderMessages())
+				if m.renderedPrefix == "" {
+					m.renderedPrefix = m.renderMessagesExceptLast()
+				}
+				prefix := ui.AssistantPrefixStyle.Render("[Assistant]")
+				content := ui.AssistantMsgStyle.Render(last.Content)
+				m.viewport.SetContent(m.renderedPrefix + fmt.Sprintf("%s %s\n", prefix, content))
 				m.viewport.GotoBottom()
 			}
 		}

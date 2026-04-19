@@ -1,9 +1,13 @@
 package model
 
 import (
+	"fmt"
+	"time"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/user/agenttea/internal/api"
 	"github.com/user/agenttea/internal/store"
+	"github.com/user/agenttea/internal/ui"
 )
 
 func (m AppModel) handleKeyMsg(message tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -113,6 +117,55 @@ func (m AppModel) handleKeyMsg(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if !m.loading {
 			m.showPromptPicker = true
 			m.promptCursor = 0
+			return m, nil
+		}
+
+	case "ctrl+y":
+		if !m.loading && m.focused == FocusChat {
+			for i := len(m.messages) - 1; i >= 0; i-- {
+				if m.messages[i].Role == "assistant" && !m.messages[i].Streaming {
+					ok, preview := ui.CopyLastCodeBlock(m.messages[i].Content)
+					if ok {
+						m.messages = append(m.messages, ChatMessage{
+							Role:      "system",
+							Content:   fmt.Sprintf("已复制代码块: %s", preview),
+							Timestamp: time.Now(),
+						})
+						m.viewport.SetContent(m.renderMessages())
+						m.viewport.GotoBottom()
+					} else {
+						m.messages = append(m.messages, ChatMessage{
+							Role:      "system",
+							Content:   "未找到可复制的代码块",
+							Timestamp: time.Now(),
+						})
+						m.viewport.SetContent(m.renderMessages())
+						m.viewport.GotoBottom()
+					}
+					return m, nil
+				}
+			}
+		}
+
+	case "ctrl+t":
+		if !m.loading {
+			themes := ui.AvailableThemes
+			current := ui.GetTheme()
+			nextIdx := 0
+			for i, t := range themes {
+				if t.Name == current.Name {
+					nextIdx = (i + 1) % len(themes)
+					break
+				}
+			}
+			ui.SetTheme(themes[nextIdx])
+			m.messages = append(m.messages, ChatMessage{
+				Role:      "system",
+				Content:   fmt.Sprintf("主题已切换为: %s", themes[nextIdx].Name),
+				Timestamp: time.Now(),
+			})
+			m.viewport.SetContent(m.renderMessages())
+			m.viewport.GotoBottom()
 			return m, nil
 		}
 

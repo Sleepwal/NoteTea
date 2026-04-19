@@ -13,14 +13,21 @@ type SystemPromptPreset struct {
 }
 
 type Config struct {
-	APIKey           string              `json:"api_key,omitempty"`
-	BaseURL          string              `json:"base_url"`
-	Model            string              `json:"model"`
-	Temperature      float64             `json:"temperature"`
-	NumPredict       int                 `json:"num_predict"`
-	Theme            string              `json:"theme"`
-	SystemPrompt     string              `json:"system_prompt,omitempty"`
-	PromptPresets    []SystemPromptPreset `json:"prompt_presets,omitempty"`
+	APIKey        string               `json:"api_key,omitempty"`
+	BaseURL       string               `json:"base_url"`
+	Model         string               `json:"model"`
+	Temperature   float64              `json:"temperature"`
+	NumPredict    int                  `json:"num_predict"`
+	Theme         string               `json:"theme"`
+	SystemPrompt  string               `json:"system_prompt,omitempty"`
+	PromptPresets []SystemPromptPreset `json:"prompt_presets,omitempty"`
+	Hooks         []HookConfig         `json:"hooks,omitempty"`
+}
+
+type HookConfig struct {
+	Type    string `json:"type"`
+	Command string `json:"command"`
+	Enabled bool   `json:"enabled"`
 }
 
 var DefaultConfig = Config{

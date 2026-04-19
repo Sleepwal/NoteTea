@@ -13,6 +13,7 @@ import (
 	"github.com/user/agenttea/internal/api"
 	"github.com/user/agenttea/internal/logger"
 	"github.com/user/agenttea/internal/msg"
+	"github.com/user/agenttea/internal/plugin"
 	"github.com/user/agenttea/internal/store"
 	"github.com/user/agenttea/internal/ui"
 )
@@ -24,6 +25,10 @@ func (m AppModel) handleSend() (tea.Model, tea.Cmd) {
 	}
 
 	logger.Info("发送消息, 长度: %d, 模型: %s", len(input), m.client.Model)
+
+	if m.hookManager != nil {
+		m.hookManager.ExecuteHooks(plugin.HookBeforeSend, input)
+	}
 
 	m.inputHistory = append(m.inputHistory, input)
 	m.historyIndex = -1
@@ -194,6 +199,7 @@ func (m AppModel) startChatRequest() tea.Cmd {
 
 func (m AppModel) readNextStreamToken() tea.Cmd {
 	scanner := m.streamScan
+	backend := m.client.Backend
 
 	return func() tea.Msg {
 		if scanner == nil {
@@ -203,6 +209,36 @@ func (m AppModel) readNextStreamToken() tea.Cmd {
 		for scanner.Scan() {
 			line := scanner.Bytes()
 			if len(line) == 0 {
+				continue
+			}
+
+			if backend == api.BackendOpenAI {
+				lineStr := string(line)
+				if !strings.HasPrefix(lineStr, "data: ") {
+					continue
+				}
+				data := strings.TrimPrefix(lineStr, "data: ")
+				if data == "[DONE]" {
+					return msg.StreamDoneMsg{}
+				}
+
+				var resp api.OpenAIChatResponse
+				if err := json.Unmarshal([]byte(data), &resp); err != nil {
+					continue
+				}
+
+				if len(resp.Choices) > 0 {
+					choice := resp.Choices[0]
+					if choice.FinishReason != nil && *choice.FinishReason == "stop" {
+						return msg.StreamDoneMsg{
+							PromptEvalCount: resp.Usage.PromptTokens,
+							EvalCount:       resp.Usage.CompletionTokens,
+						}
+					}
+					if choice.Delta != nil && choice.Delta.Content != "" {
+						return msg.StreamTokenMsg{Content: choice.Delta.Content}
+					}
+				}
 				continue
 			}
 
@@ -266,6 +302,11 @@ func (m *AppModel) handleStreamDone(message msg.StreamDoneMsg) {
 	m.saveConversation()
 	logger.Info("流式响应完成, prompt: %d tokens, completion: %d tokens, 耗时: %s",
 		message.PromptEvalCount, message.EvalCount, time.Duration(message.TotalDuration).Round(time.Millisecond))
+
+	if m.hookManager != nil && len(m.messages) > 0 {
+		last := m.messages[len(m.messages)-1]
+		m.hookManager.ExecuteHooks(plugin.HookAfterReceive, last.Content)
+	}
 	m.viewport.SetContent(m.renderMessages())
 	m.viewport.GotoBottom()
 }
@@ -276,6 +317,10 @@ func (m *AppModel) handleApiError(message msg.ApiErrorMsg) {
 	m.cancelFunc = nil
 	m.cleanupStream()
 	logger.Error("API 错误: %v", message.Err)
+
+	if m.hookManager != nil {
+		m.hookManager.ExecuteHooks(plugin.HookOnError, message.Err.Error())
+	}
 	if len(m.messages) > 0 {
 		last := &m.messages[len(m.messages)-1]
 		if last.Streaming {
