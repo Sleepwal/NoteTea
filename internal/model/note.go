@@ -474,7 +474,7 @@ func (m AppModel) handleNoteViewerMouse(message tea.MouseMsg) (tea.Model, tea.Cm
 // recalcNoteEditorLayout 在终端窗口大小变化时重新计算笔记编辑器的布局。
 // 根据当前终端尺寸调整各输入框的宽度，以及内容输入框的高度
 // （填满标题、标签、帮助文本之外的剩余空间）。
-func (m AppModel) recalcNoteEditorLayout() {
+func (m *AppModel) recalcNoteEditorLayout() {
 	if m.width == 0 || m.height == 0 {
 		return
 	}
