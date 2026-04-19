@@ -107,6 +107,7 @@ func (m AppModel) renderHelp() string {
   Ctrl+P        打开对话列表
   Ctrl+E        导出当前对话
   Ctrl+S        切换 System Prompt 预设
+  Ctrl+J        打开笔记列表
   Ctrl+Y        复制最后一个代码块到剪贴板
   Ctrl+T        切换主题 (dark/light/catppuccin)
   Ctrl+M        切换模型
@@ -207,6 +208,109 @@ func (m AppModel) renderConvPicker() string {
 
 	sb.WriteString("\n")
 	sb.WriteString(ui.HelpStyle.Render("↑/k ↓/j 导航 | Enter 切换 | d 删除 | Esc 取消"))
+
+	content := sb.String()
+	dialog := ui.ModelPickerBorderStyle.Render(content)
+
+	return lipgloss.NewStyle().
+		Width(m.width).
+		Height(m.height).
+		Align(lipgloss.Center, lipgloss.Center).
+		Render(dialog)
+}
+
+func (m AppModel) renderNotePicker() string {
+	var sb strings.Builder
+	sb.WriteString("笔记列表:\n\n")
+
+	if len(m.noteList) == 0 {
+		sb.WriteString(ui.HelpStyle.Render("暂无笔记，按 n 创建新笔记"))
+	} else {
+		for i, note := range m.noteList {
+			cursor := "  "
+			style := ui.HelpStyle
+			if i == m.noteCursor {
+				cursor = "> "
+				style = ui.ModelPickerActiveStyle
+			}
+
+			tagsStr := ""
+			if len(note.Tags) > 0 {
+				tagsStr = fmt.Sprintf(" [%s]", strings.Join(note.Tags, ", "))
+			}
+			label := fmt.Sprintf("%s%s  (%s)", note.Title, tagsStr, note.UpdatedAt.Format("01-02 15:04"))
+			sb.WriteString(fmt.Sprintf("%s%s\n", cursor, style.Render(label)))
+		}
+	}
+
+	sb.WriteString("\n")
+	sb.WriteString(ui.HelpStyle.Render("↑/k ↓/j 导航 | Enter 查看 | n 新建 | e 编辑 | d 删除 | q 知识巩固 | Esc 取消"))
+
+	content := sb.String()
+	dialog := ui.ModelPickerBorderStyle.Render(content)
+
+	return lipgloss.NewStyle().
+		Width(m.width).
+		Height(m.height).
+		Align(lipgloss.Center, lipgloss.Center).
+		Render(dialog)
+}
+
+func (m AppModel) renderNoteEditor() string {
+	var sb strings.Builder
+
+	if m.noteEditorMode == "create" {
+		sb.WriteString("新建笔记\n\n")
+	} else if m.noteEditorMode == "edit" {
+		sb.WriteString("编辑笔记\n\n")
+	}
+
+	sb.WriteString("标题:\n")
+	titleView := m.noteTitleInput.View()
+	sb.WriteString(titleView)
+	sb.WriteString("\n\n")
+
+	sb.WriteString("内容 (Markdown):\n")
+	contentView := m.noteContentInput.View()
+	sb.WriteString(contentView)
+	sb.WriteString("\n\n")
+
+	sb.WriteString(ui.HelpStyle.Render("Tab 切换标题/内容 | Ctrl+S 保存 | Esc 取消"))
+
+	content := sb.String()
+	dialog := ui.ModelPickerBorderStyle.Render(content)
+
+	return lipgloss.NewStyle().
+		Width(m.width).
+		Height(m.height).
+		Align(lipgloss.Center, lipgloss.Center).
+		Render(dialog)
+}
+
+func (m AppModel) renderNoteViewer() string {
+	var sb strings.Builder
+
+	if m.currentNote != nil {
+		sb.WriteString(fmt.Sprintf("查看笔记: %s\n\n", m.currentNote.Title))
+
+		rendered := ui.RenderMarkdown(m.currentNote.Content)
+		sb.WriteString(rendered)
+
+		tagsStr := ""
+		if len(m.currentNote.Tags) > 0 {
+			tagsStr = fmt.Sprintf(" [%s]", strings.Join(m.currentNote.Tags, ", "))
+		}
+		sb.WriteString(fmt.Sprintf("\n%s", ui.StatsStyle.Render(
+			fmt.Sprintf("创建: %s | 更新: %s%s",
+				m.currentNote.CreatedAt.Format("2006-01-02 15:04"),
+				m.currentNote.UpdatedAt.Format("2006-01-02 15:04"),
+				tagsStr,
+			),
+		)))
+	}
+
+	sb.WriteString("\n\n")
+	sb.WriteString(ui.HelpStyle.Render("e 编辑 | q 知识巩固 | Esc 返回"))
 
 	content := sb.String()
 	dialog := ui.ModelPickerBorderStyle.Render(content)

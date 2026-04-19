@@ -20,6 +20,15 @@ func (m AppModel) handleKeyMsg(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.showPromptPicker {
 		return m.handlePromptPickerKey(message)
 	}
+	if m.showNoteEditor {
+		if m.noteEditorMode == "view" {
+			return m.handleNoteViewerKey(message)
+		}
+		return m.handleNoteEditorKey(message)
+	}
+	if m.showNotePicker {
+		return m.handleNotePickerKey(message)
+	}
 
 	switch message.String() {
 	case "ctrl+c":
@@ -120,6 +129,9 @@ func (m AppModel) handleKeyMsg(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+	case "ctrl+j":
+		return m.openNotePicker()
+
 	case "ctrl+y":
 		if !m.loading && m.focused == FocusChat {
 			for i := len(m.messages) - 1; i >= 0; i-- {
@@ -170,6 +182,22 @@ func (m AppModel) handleKeyMsg(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "esc":
+		if m.showNoteEditor {
+			m.showNoteEditor = false
+			m.noteEditorMode = ""
+			m.noteTitleInput.Blur()
+			m.noteContentInput.Blur()
+			notes, _ := store.ListNotes()
+			m.noteList = notes
+			if len(notes) > 0 {
+				m.showNotePicker = true
+			}
+			return m, nil
+		}
+		if m.showNotePicker {
+			m.showNotePicker = false
+			return m, nil
+		}
 		if m.showPromptPicker {
 			m.showPromptPicker = false
 			return m, nil
@@ -237,6 +265,10 @@ func (m AppModel) handleKeyMsg(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m AppModel) delegateToComponents(teaMsg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.showNoteEditor && m.noteEditorMode != "view" {
+		return m.delegateNoteEditorComponents(teaMsg)
+	}
+
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 

@@ -54,6 +54,15 @@ type AppModel struct {
 	promptCursor     int
 	promptPresets    []config.SystemPromptPreset
 
+	showNotePicker   bool
+	noteCursor       int
+	noteList         []store.Note
+	showNoteEditor   bool
+	noteEditorMode   string
+	currentNote      *store.Note
+	noteTitleInput   textarea.Model
+	noteContentInput textarea.Model
+
 	messages     []ChatMessage
 	inputHistory []string
 	historyIndex int
@@ -91,6 +100,20 @@ func NewAppModel(client *api.Client) AppModel {
 
 	vp := viewport.New(80, 20)
 
+	noteTitleTa := textarea.New()
+	noteTitleTa.Placeholder = "输入笔记标题..."
+	noteTitleTa.Prompt = "┃ "
+	noteTitleTa.CharLimit = 0
+	noteTitleTa.SetHeight(1)
+	noteTitleTa.ShowLineNumbers = false
+
+	noteContentTa := textarea.New()
+	noteContentTa.Placeholder = "输入笔记内容（Markdown 格式）..."
+	noteContentTa.Prompt = "┃ "
+	noteContentTa.CharLimit = 0
+	noteContentTa.SetHeight(8)
+	noteContentTa.ShowLineNumbers = false
+
 	conv := store.NewConversation(client.Model)
 	if lastConv, err := store.LoadLastConversation(); err == nil && lastConv != nil {
 		conv = lastConv
@@ -122,20 +145,22 @@ func NewAppModel(client *api.Client) AppModel {
 	}
 
 	return AppModel{
-		focused:       FocusInput,
-		loading:       false,
-		showHelp:      false,
-		messages:      restoreMsgs,
-		inputHistory:  []string{},
-		historyIndex:  -1,
-		textarea:      ta,
-		viewport:      vp,
-		spinner:       sp,
-		client:        client,
-		conversation:  conv,
-		systemPrompt:  sysPrompt,
-		promptPresets: presets,
-		hookManager:   initHookManager(cfg),
+		focused:          FocusInput,
+		loading:          false,
+		showHelp:         false,
+		messages:         restoreMsgs,
+		inputHistory:     []string{},
+		historyIndex:     -1,
+		textarea:         ta,
+		viewport:         vp,
+		spinner:          sp,
+		client:           client,
+		conversation:     conv,
+		systemPrompt:     sysPrompt,
+		promptPresets:    presets,
+		hookManager:      initHookManager(cfg),
+		noteTitleInput:   noteTitleTa,
+		noteContentInput: noteContentTa,
 	}
 }
 
@@ -161,6 +186,7 @@ func (m AppModel) Update(teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = message.Width
 		m.height = message.Height
 		m.recalcLayout()
+		m.recalcNoteEditorLayout()
 		m.viewport.SetContent(m.renderMessages())
 		m.viewport.GotoBottom()
 		return m, nil
@@ -282,6 +308,23 @@ func (m AppModel) View() string {
 		return lipgloss.JoinVertical(lipgloss.Left,
 			lipgloss.NewStyle().Width(m.width).Height(m.height).Render(mainView),
 		) + "\n" + m.renderPromptPicker()
+	}
+
+	if m.showNotePicker {
+		return lipgloss.JoinVertical(lipgloss.Left,
+			lipgloss.NewStyle().Width(m.width).Height(m.height).Render(mainView),
+		) + "\n" + m.renderNotePicker()
+	}
+
+	if m.showNoteEditor {
+		if m.noteEditorMode == "view" {
+			return lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Width(m.width).Height(m.height).Render(mainView),
+			) + "\n" + m.renderNoteViewer()
+		}
+		return lipgloss.JoinVertical(lipgloss.Left,
+			lipgloss.NewStyle().Width(m.width).Height(m.height).Render(mainView),
+		) + "\n" + m.renderNoteEditor()
 	}
 
 	return mainView
