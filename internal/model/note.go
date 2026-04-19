@@ -459,13 +459,13 @@ func (m AppModel) handleNoteEditorMouse(message tea.MouseMsg) (tea.Model, tea.Cm
 
 // handleNoteViewerMouse 处理笔记查看器中的鼠标事件。
 // 使用 viewport 的 LineUp/LineDown 实现滚轮滚动。
-func (m AppModel) handleNoteViewerMouse(message tea.MouseMsg) (tea.Model, tea.Cmd) {
-	if message.Button == tea.MouseButtonWheelUp {
-		m.noteViewer.LineUp(3)
+func (m *AppModel) handleNoteViewerMouse(message tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if message.Button == tea.MouseButton(tea.KeyUp) {
+		m.noteViewer.ScrollUp(3)
 		return m, nil
 	}
-	if message.Button == tea.MouseButtonWheelDown {
-		m.noteViewer.LineDown(3)
+	if message.Button == tea.MouseButton(tea.KeyDown) {
+		m.noteViewer.ScrollDown(3)
 		return m, nil
 	}
 	return m, nil

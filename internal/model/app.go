@@ -215,7 +215,7 @@ func (m AppModel) Update(teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 		if m.showNoteEditor && m.noteEditorMode != "view" {
 			model, cmd := m.handleNoteEditorMouse(message)
-			result := model.(AppModel)
+			result := model.(*AppModel)
 			result.syncNoteEditorHeight()
 			return result, cmd
 		}
