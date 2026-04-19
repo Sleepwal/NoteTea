@@ -54,17 +54,18 @@ type AppModel struct {
 	promptCursor     int
 	promptPresets    []config.SystemPromptPreset
 
-	showNotePicker    bool
-	noteCursor        int
-	noteList          []store.Note
-	showNoteEditor    bool
-	noteEditorMode    string
-	currentNote       *store.Note
-	noteTitleInput    textarea.Model
-	noteContentInput  textarea.Model
-	noteTagsInput     textarea.Model
-	noteDeleteConfirm bool
-	noteViewer        viewport.Model
+	// 笔记功能相关状态
+	showNotePicker    bool           // 是否显示笔记列表弹窗
+	noteCursor        int            // 笔记列表中的光标位置
+	noteList          []store.Note   // 笔记列表数据
+	showNoteEditor    bool           // 是否显示笔记编辑器/查看器
+	noteEditorMode    string         // 编辑器模式: "create" | "edit" | "view"
+	currentNote       *store.Note    // 当前操作的笔记（编辑/查看）
+	noteTitleInput    textarea.Model // 笔记标题输入框
+	noteContentInput  textarea.Model // 笔记内容输入框（Markdown）
+	noteTagsInput     textarea.Model // 笔记标签输入框（逗号分隔）
+	noteDeleteConfirm bool           // 删除确认状态（需按两次 d 确认）
+	noteViewer        viewport.Model // 笔记查看器的 viewport（支持滚动）
 
 	messages     []ChatMessage
 	inputHistory []string
@@ -264,6 +265,10 @@ func (m AppModel) Update(teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 	return result, cmd
 }
 
+// syncNoteEditorHeight 在 Update 的返回路径中同步笔记编辑器内容输入框的高度。
+// 由于 AppModel 是值类型，在值接收者方法（如 renderNoteEditor）中调用 SetHeight
+// 修改的是副本，不会持久化到 Bubble Tea 的实际模型状态。
+// 因此必须在 Update 方法中通过指针接收者设置高度，确保修改能传回框架。
 func (m *AppModel) syncNoteEditorHeight() {
 	if !m.showNoteEditor || m.noteEditorMode == "view" || m.height == 0 {
 		return

@@ -219,6 +219,9 @@ func (m AppModel) renderConvPicker() string {
 		Render(dialog)
 }
 
+// renderNotePicker 渲染笔记列表弹窗。
+// 显示所有笔记的标题、#标签、更新时间和内容预览。
+// 删除确认状态下显示红色警告提示。
 func (m AppModel) renderNotePicker() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("📝 笔记列表 (%d)\n\n", len(m.noteList)))
@@ -277,6 +280,10 @@ func (m AppModel) renderNotePicker() string {
 		Render(dialog)
 }
 
+// renderNoteEditor 渲染笔记编辑器界面。
+// 包含标题、内容（Markdown）、标签三个输入区域，
+// 当前聚焦的输入区域标签文字高亮显示。
+// 使用 Padding(1,2) 从顶部开始布局，避免居中导致长内容被截断。
 func (m AppModel) renderNoteEditor() string {
 	var sb strings.Builder
 
@@ -322,6 +329,8 @@ func (m AppModel) renderNoteEditor() string {
 		Render(content)
 }
 
+// renderNoteViewer 渲染笔记查看界面。
+// 使用 viewport 组件支持长内容滚动，底部显示操作提示。
 func (m AppModel) renderNoteViewer() string {
 	var sb strings.Builder
 

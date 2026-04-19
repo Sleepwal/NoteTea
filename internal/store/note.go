@@ -1,3 +1,4 @@
+// Package store 提供数据持久化功能，包括对话和笔记的存储与读取。
 package store
 
 import (
@@ -9,15 +10,33 @@ import (
 	"time"
 )
 
+// Note 表示一条笔记，使用 Markdown 文件存储在 ~/.agenttea/notes/ 目录下。
+// 文件格式为 YAML frontmatter + Markdown 正文，可直接用外部编辑器打开。
+//
+// 文件示例:
+//
+//	---
+//	id: "1710000000000"
+//	title: "Go 并发编程笔记"
+//	tags:
+//	  - "go"
+//	  - "并发"
+//	created_at: "2025-01-01T10:00:00Z"
+//	updated_at: "2025-01-01T10:00:00Z"
+//	---
+//
+//	# Go 并发编程笔记
+//	正文内容...
 type Note struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Content   string    `json:"content"`
-	Tags      []string  `json:"tags"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        string    `json:"id"`         // 笔记唯一标识，使用创建时间的毫秒时间戳
+	Title     string    `json:"title"`      // 笔记标题
+	Content   string    `json:"content"`    // Markdown 正文内容
+	Tags      []string  `json:"tags"`       // 标签列表，用于分类和检索
+	CreatedAt time.Time `json:"created_at"` // 创建时间
+	UpdatedAt time.Time `json:"updated_at"` // 最后更新时间，每次保存时自动刷新
 }
 
+// noteDir 返回笔记存储目录路径 (~/.agenttea/notes/)。
 func noteDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -26,6 +45,8 @@ func noteDir() (string, error) {
 	return filepath.Join(home, ".agenttea", "notes"), nil
 }
 
+// ensureNoteDir 确保笔记存储目录存在，若不存在则递归创建。
+// 目录权限为 0700（仅所有者可读写执行）。
 func ensureNoteDir() error {
 	dir, err := noteDir()
 	if err != nil {
@@ -34,6 +55,8 @@ func ensureNoteDir() error {
 	return os.MkdirAll(dir, 0700)
 }
 
+// NewNote 创建一条新笔记。ID 使用当前毫秒时间戳生成。
+// 若 title 为空，默认设为"未命名笔记"。
 func NewNote(title string) *Note {
 	now := time.Now()
 	tags := []string{}
@@ -50,6 +73,10 @@ func NewNote(title string) *Note {
 	}
 }
 
+// SaveNote 将笔记保存为 Markdown 文件。
+// 文件格式：YAML frontmatter（元数据）+ 空行 + Markdown 正文。
+// 每次保存时自动更新 UpdatedAt 时间戳。
+// 文件权限为 0600（仅所有者可读写）。
 func SaveNote(note *Note) error {
 	if err := ensureNoteDir(); err != nil {
 		return err
@@ -57,6 +84,7 @@ func SaveNote(note *Note) error {
 
 	note.UpdatedAt = time.Now()
 
+	// 构建 YAML frontmatter
 	var sb strings.Builder
 	sb.WriteString("---\n")
 	sb.WriteString(fmt.Sprintf("id: %q\n", note.ID))
@@ -87,6 +115,7 @@ func SaveNote(note *Note) error {
 	return nil
 }
 
+// LoadNote 根据 ID 读取笔记。返回 nil 表示笔记不存在。
 func LoadNote(id string) (*Note, error) {
 	dir, err := noteDir()
 	if err != nil {
@@ -105,9 +134,14 @@ func LoadNote(id string) (*Note, error) {
 	return parseNoteContent(data)
 }
 
+// parseNoteContent 解析 Markdown 文件内容为 Note 结构体。
+// 支持两种格式：
+//  1. 带 YAML frontmatter 的标准格式（--- 包裹的元数据头 + 正文）
+//  2. 纯 Markdown 格式（无 frontmatter，标题默认为"未命名笔记"）
 func parseNoteContent(data []byte) (*Note, error) {
 	content := string(data)
 
+	// 无 frontmatter 的纯 Markdown 文件
 	if !strings.HasPrefix(content, "---\n") {
 		return &Note{
 			Title:   "未命名笔记",
@@ -116,6 +150,7 @@ func parseNoteContent(data []byte) (*Note, error) {
 		}, nil
 	}
 
+	// 查找 frontmatter 结束标记
 	endIdx := strings.Index(content[4:], "\n---\n")
 	if endIdx == -1 {
 		return &Note{
@@ -132,6 +167,7 @@ func parseNoteContent(data []byte) (*Note, error) {
 		Tags: []string{},
 	}
 
+	// 逐行解析 frontmatter 中的键值对
 	lines := strings.Split(frontmatter, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -154,6 +190,7 @@ func parseNoteContent(data []byte) (*Note, error) {
 				note.UpdatedAt = t
 			}
 		} else if strings.HasPrefix(line, "- ") {
+			// YAML 列表项，用于解析 tags 数组
 			tag := unquote(strings.TrimSpace(strings.TrimPrefix(line, "- ")))
 			note.Tags = append(note.Tags, tag)
 		}
@@ -168,6 +205,8 @@ func parseNoteContent(data []byte) (*Note, error) {
 	return note, nil
 }
 
+// unquote 去除字符串两端的双引号。
+// 用于解析 YAML frontmatter 中的带引号值，如 title: "笔记标题" → 笔记标题。
 func unquote(s string) string {
 	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
 		return s[1 : len(s)-1]
@@ -175,6 +214,8 @@ func unquote(s string) string {
 	return s
 }
 
+// ListNotes 列出所有笔记，按更新时间倒序排列（最近更新的排在前面）。
+// 若笔记目录不存在则返回空切片而非错误。
 func ListNotes() ([]Note, error) {
 	dir, err := noteDir()
 	if err != nil {
@@ -191,10 +232,12 @@ func ListNotes() ([]Note, error) {
 
 	var notes []Note
 	for _, entry := range entries {
+		// 仅处理 .md 文件，跳过目录和其他格式
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".md" {
 			continue
 		}
 
+		// 文件名去掉 .md 后缀即为笔记 ID
 		id := entry.Name()[:len(entry.Name())-3]
 		note, err := LoadNote(id)
 		if err != nil || note == nil {
@@ -206,6 +249,7 @@ func ListNotes() ([]Note, error) {
 		notes = append(notes, *note)
 	}
 
+	// 按更新时间倒序排列
 	sort.Slice(notes, func(i, j int) bool {
 		return notes[i].UpdatedAt.After(notes[j].UpdatedAt)
 	})
@@ -213,6 +257,7 @@ func ListNotes() ([]Note, error) {
 	return notes, nil
 }
 
+// DeleteNote 根据 ID 删除笔记文件。
 func DeleteNote(id string) error {
 	dir, err := noteDir()
 	if err != nil {
