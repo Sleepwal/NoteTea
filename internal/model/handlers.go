@@ -10,6 +10,12 @@ func (m AppModel) handleKeyMsg(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.showModelPicker {
 		return m.handleModelPickerKey(message)
 	}
+	if m.showConvPicker {
+		return m.handleConvPickerKey(message)
+	}
+	if m.showPromptPicker {
+		return m.handlePromptPickerKey(message)
+	}
 
 	switch message.String() {
 	case "ctrl+c":
@@ -79,7 +85,46 @@ func (m AppModel) handleKeyMsg(message tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+	case "ctrl+p":
+		if !m.loading {
+			convs, err := store.ListConversations()
+			if err != nil || len(convs) == 0 {
+				return m, nil
+			}
+			m.showConvPicker = true
+			m.convList = convs
+			m.convCursor = 0
+			for i, c := range convs {
+				if m.conversation != nil && c.ID == m.conversation.ID {
+					m.convCursor = i
+					break
+				}
+			}
+			return m, nil
+		}
+
+	case "ctrl+e":
+		if !m.loading && len(m.messages) > 0 {
+			m.exportConversation()
+			return m, nil
+		}
+
+	case "ctrl+s":
+		if !m.loading {
+			m.showPromptPicker = true
+			m.promptCursor = 0
+			return m, nil
+		}
+
 	case "esc":
+		if m.showPromptPicker {
+			m.showPromptPicker = false
+			return m, nil
+		}
+		if m.showConvPicker {
+			m.showConvPicker = false
+			return m, nil
+		}
 		if m.showModelPicker {
 			m.showModelPicker = false
 			return m, nil
@@ -171,6 +216,82 @@ func (m AppModel) handleModelPickerKey(message tea.KeyMsg) (tea.Model, tea.Cmd) 
 		m.showModelPicker = false
 	case "esc", "ctrl+c":
 		m.showModelPicker = false
+	}
+	return m, nil
+}
+
+func (m AppModel) handleConvPickerKey(message tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch message.String() {
+	case "up", "k":
+		if m.convCursor > 0 {
+			m.convCursor--
+		}
+	case "down", "j":
+		if m.convCursor < len(m.convList)-1 {
+			m.convCursor++
+		}
+	case "enter":
+		selected := m.convList[m.convCursor]
+		conv, err := store.LoadConversation(selected.ID)
+		if err != nil || conv == nil {
+			m.showConvPicker = false
+			return m, nil
+		}
+		m.conversation = conv
+		restoreMsgs := make([]ChatMessage, 0, len(conv.Messages))
+		for _, sm := range conv.Messages {
+			restoreMsgs = append(restoreMsgs, ChatMessage{
+				Role:      sm.Role,
+				Content:   sm.Content,
+				Timestamp: sm.Timestamp,
+			})
+		}
+		m.messages = restoreMsgs
+		m.inputHistory = nil
+		m.historyIndex = -1
+		m.currentInput = ""
+		m.hasError = false
+		m.showConvPicker = false
+		m.viewport.SetContent(m.renderMessages())
+		m.viewport.GotoBottom()
+	case "d":
+		if len(m.convList) > 0 {
+			selected := m.convList[m.convCursor]
+			store.DeleteConversation(selected.ID)
+			m.convList = append(m.convList[:m.convCursor], m.convList[m.convCursor+1:]...)
+			if m.convCursor >= len(m.convList) {
+				m.convCursor = len(m.convList) - 1
+			}
+			if len(m.convList) == 0 {
+				m.showConvPicker = false
+			}
+		}
+	case "esc", "ctrl+c":
+		m.showConvPicker = false
+	}
+	return m, nil
+}
+
+func (m AppModel) handlePromptPickerKey(message tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch message.String() {
+	case "up", "k":
+		if m.promptCursor > 0 {
+			m.promptCursor--
+		}
+	case "down", "j":
+		if m.promptCursor < len(m.promptPresets)-1 {
+			m.promptCursor++
+		}
+	case "enter":
+		if len(m.promptPresets) > 0 {
+			m.systemPrompt = m.promptPresets[m.promptCursor].Prompt
+		}
+		m.showPromptPicker = false
+	case "c":
+		m.systemPrompt = ""
+		m.showPromptPicker = false
+	case "esc", "ctrl+c":
+		m.showPromptPicker = false
 	}
 	return m, nil
 }

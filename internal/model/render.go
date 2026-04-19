@@ -58,6 +58,9 @@ func (m AppModel) renderHelp() string {
   Tab           切换输入区/对话区焦点
   Ctrl+L        清空对话历史
   Ctrl+N        新建对话
+  Ctrl+P        打开对话列表
+  Ctrl+E        导出当前对话
+  Ctrl+S        切换 System Prompt 预设
   Ctrl+M        切换模型
   Esc           取消当前请求 / 关闭帮助
   ?             显示/隐藏帮助（对话区焦点时）
@@ -88,6 +91,74 @@ func (m AppModel) renderModelPicker() string {
 
 	sb.WriteString("\n")
 	sb.WriteString(ui.HelpStyle.Render("↑/k ↑/j 导航 | Enter 确认 | Esc 取消"))
+
+	content := sb.String()
+	dialog := ui.ModelPickerBorderStyle.Render(content)
+
+	return lipgloss.NewStyle().
+		Width(m.width).
+		Height(m.height).
+		Align(lipgloss.Center, lipgloss.Center).
+		Render(dialog)
+}
+
+func (m AppModel) renderPromptPicker() string {
+	var sb strings.Builder
+	sb.WriteString("选择 System Prompt 预设:\n\n")
+
+	for i, preset := range m.promptPresets {
+		cursor := "  "
+		style := ui.HelpStyle
+		if i == m.promptCursor {
+			cursor = "> "
+			style = ui.ModelPickerActiveStyle
+		}
+
+		isActive := m.systemPrompt == preset.Prompt
+		label := fmt.Sprintf("%s: %s", preset.Name, preset.Prompt)
+		if len(label) > 60 {
+			label = label[:60] + "..."
+		}
+		if isActive {
+			label += " (当前)"
+		}
+		sb.WriteString(fmt.Sprintf("%s%s\n", cursor, style.Render(label)))
+	}
+
+	sb.WriteString("\n")
+	sb.WriteString(ui.HelpStyle.Render("↑/k ↓/j 导航 | Enter 选择 | c 清除 | Esc 取消"))
+
+	content := sb.String()
+	dialog := ui.ModelPickerBorderStyle.Render(content)
+
+	return lipgloss.NewStyle().
+		Width(m.width).
+		Height(m.height).
+		Align(lipgloss.Center, lipgloss.Center).
+		Render(dialog)
+}
+func (m AppModel) renderConvPicker() string {
+	var sb strings.Builder
+	sb.WriteString("对话列表:\n\n")
+
+	for i, conv := range m.convList {
+		cursor := "  "
+		style := ui.HelpStyle
+		if i == m.convCursor {
+			cursor = "> "
+			style = ui.ModelPickerActiveStyle
+		}
+
+		isCurrent := m.conversation != nil && conv.ID == m.conversation.ID
+		label := fmt.Sprintf("%s  (%s, %d条消息)", conv.Title, conv.UpdatedAt.Format("01-02 15:04"), len(conv.Messages))
+		if isCurrent {
+			label += " (当前)"
+		}
+		sb.WriteString(fmt.Sprintf("%s%s\n", cursor, style.Render(label)))
+	}
+
+	sb.WriteString("\n")
+	sb.WriteString(ui.HelpStyle.Render("↑/k ↓/j 导航 | Enter 切换 | d 删除 | Esc 取消"))
 
 	content := sb.String()
 	dialog := ui.ModelPickerBorderStyle.Render(content)

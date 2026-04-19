@@ -7,13 +7,20 @@ import (
 	"path/filepath"
 )
 
+type SystemPromptPreset struct {
+	Name   string `json:"name"`
+	Prompt string `json:"prompt"`
+}
+
 type Config struct {
-	APIKey      string  `json:"api_key,omitempty"`
-	BaseURL     string  `json:"base_url"`
-	Model       string  `json:"model"`
-	Temperature float64 `json:"temperature"`
-	NumPredict  int     `json:"num_predict"`
-	Theme       string  `json:"theme"`
+	APIKey           string              `json:"api_key,omitempty"`
+	BaseURL          string              `json:"base_url"`
+	Model            string              `json:"model"`
+	Temperature      float64             `json:"temperature"`
+	NumPredict       int                 `json:"num_predict"`
+	Theme            string              `json:"theme"`
+	SystemPrompt     string              `json:"system_prompt,omitempty"`
+	PromptPresets    []SystemPromptPreset `json:"prompt_presets,omitempty"`
 }
 
 var DefaultConfig = Config{
@@ -22,6 +29,12 @@ var DefaultConfig = Config{
 	Temperature: 0.7,
 	NumPredict:  4096,
 	Theme:       "dark",
+	PromptPresets: []SystemPromptPreset{
+		{Name: "默认助手", Prompt: "你是一个有帮助的AI助手。"},
+		{Name: "代码助手", Prompt: "你是一个专业的编程助手，擅长代码编写、调试和架构设计。请用中文回答，代码部分使用 Markdown 代码块格式。"},
+		{Name: "翻译助手", Prompt: "你是一个专业的翻译助手，擅长中英文互译。请提供准确、流畅的翻译，必要时给出多种译法供选择。"},
+		{Name: "写作助手", Prompt: "你是一个专业的写作助手，擅长各类文体写作。请根据用户需求提供高质量的文字内容。"},
+	},
 }
 
 func configDir() (string, error) {

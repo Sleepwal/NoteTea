@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -53,6 +55,60 @@ func (m AppModel) handleSend() (tea.Model, tea.Cmd) {
 	return m, m.startChatRequest()
 }
 
+func (m *AppModel) exportConversation() {
+	if m.conversation == nil || len(m.messages) == 0 {
+		return
+	}
+
+	var sb strings.Builder
+	sb.WriteString("# " + m.conversation.Title + "\n\n")
+	sb.WriteString(fmt.Sprintf("模型: %s | 导出时间: %s\n\n---\n\n", m.conversation.Model, time.Now().Format("2006-01-02 15:04:05")))
+
+	for _, msg := range m.messages {
+		if msg.Streaming {
+			continue
+		}
+		switch msg.Role {
+		case "user":
+			sb.WriteString("## 用户\n\n")
+			sb.WriteString(msg.Content + "\n\n")
+		case "assistant":
+			sb.WriteString("## 助手\n\n")
+			sb.WriteString(msg.Content + "\n\n")
+		}
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		logger.Error("导出对话失败: 无法获取用户主目录: %v", err)
+		return
+	}
+
+	exportDir := filepath.Join(home, ".agenttea", "exports")
+	if err := os.MkdirAll(exportDir, 0700); err != nil {
+		logger.Error("导出对话失败: 创建导出目录失败: %v", err)
+		return
+	}
+
+	filename := fmt.Sprintf("%s_%s.md", m.conversation.ID, time.Now().Format("20060102_150405"))
+	exportPath := filepath.Join(exportDir, filename)
+
+	if err := os.WriteFile(exportPath, []byte(sb.String()), 0600); err != nil {
+		logger.Error("导出对话失败: %v", err)
+		return
+	}
+
+	logger.Info("对话已导出: %s", exportPath)
+
+	m.messages = append(m.messages, ChatMessage{
+		Role:      "system",
+		Content:   fmt.Sprintf("对话已导出到: %s", exportPath),
+		Timestamp: time.Now(),
+	})
+	m.viewport.SetContent(m.renderMessages())
+	m.viewport.GotoBottom()
+}
+
 func (m *AppModel) saveConversation() {
 	if m.conversation == nil {
 		m.conversation = store.NewConversation(m.client.Model)
@@ -95,7 +151,13 @@ func (m *AppModel) saveConversation() {
 }
 
 func (m AppModel) buildAPIMessages() []api.Message {
-	apiMsgs := make([]api.Message, 0, len(m.messages))
+	apiMsgs := make([]api.Message, 0, len(m.messages)+1)
+	if m.systemPrompt != "" {
+		apiMsgs = append(apiMsgs, api.Message{
+			Role:    "system",
+			Content: m.systemPrompt,
+		})
+	}
 	for _, chatMsg := range m.messages {
 		if chatMsg.Role == "user" || (chatMsg.Role == "assistant" && !chatMsg.Streaming) {
 			apiMsgs = append(apiMsgs, api.Message{

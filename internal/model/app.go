@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/user/agenttea/internal/api"
+	"github.com/user/agenttea/internal/config"
 	"github.com/user/agenttea/internal/logger"
 	"github.com/user/agenttea/internal/msg"
 	"github.com/user/agenttea/internal/store"
@@ -37,12 +38,19 @@ type AppModel struct {
 	width  int
 	height int
 
-	focused         FocusArea
-	loading         bool
-	showHelp        bool
-	hasError        bool
-	showModelPicker bool
-	modelCursor     int
+	focused          FocusArea
+	loading          bool
+	showHelp         bool
+	hasError         bool
+	showModelPicker  bool
+	modelCursor      int
+	showConvPicker   bool
+	convCursor       int
+	convList         []store.Conversation
+	systemPrompt     string
+	showPromptPicker bool
+	promptCursor     int
+	promptPresets    []config.SystemPromptPreset
 
 	messages     []ChatMessage
 	inputHistory []string
@@ -93,18 +101,31 @@ func NewAppModel(client *api.Client) AppModel {
 		})
 	}
 
+	cfg, _ := config.Load()
+	var sysPrompt string
+	var presets []config.SystemPromptPreset
+	if cfg != nil {
+		sysPrompt = cfg.SystemPrompt
+		presets = cfg.PromptPresets
+	}
+	if len(presets) == 0 {
+		presets = config.DefaultConfig.PromptPresets
+	}
+
 	return AppModel{
-		focused:      FocusInput,
-		loading:      false,
-		showHelp:     false,
-		messages:     restoreMsgs,
-		inputHistory: []string{},
-		historyIndex: -1,
-		textarea:     ta,
-		viewport:     vp,
-		spinner:      sp,
-		client:       client,
-		conversation: conv,
+		focused:       FocusInput,
+		loading:       false,
+		showHelp:      false,
+		messages:      restoreMsgs,
+		inputHistory:  []string{},
+		historyIndex:  -1,
+		textarea:      ta,
+		viewport:      vp,
+		spinner:       sp,
+		client:        client,
+		conversation:  conv,
+		systemPrompt:  sysPrompt,
+		promptPresets: presets,
 	}
 }
 
@@ -219,6 +240,18 @@ func (m AppModel) View() string {
 		return lipgloss.JoinVertical(lipgloss.Left,
 			lipgloss.NewStyle().Width(m.width).Height(m.height).Render(mainView),
 		) + "\n" + m.renderModelPicker()
+	}
+
+	if m.showConvPicker {
+		return lipgloss.JoinVertical(lipgloss.Left,
+			lipgloss.NewStyle().Width(m.width).Height(m.height).Render(mainView),
+		) + "\n" + m.renderConvPicker()
+	}
+
+	if m.showPromptPicker {
+		return lipgloss.JoinVertical(lipgloss.Left,
+			lipgloss.NewStyle().Width(m.width).Height(m.height).Render(mainView),
+		) + "\n" + m.renderPromptPicker()
 	}
 
 	return mainView
